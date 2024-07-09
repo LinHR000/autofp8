@@ -2,7 +2,7 @@ import re
 from typing import List, Optional, Tuple
 
 import torch
-from transformers import AutoModelForCausalLM
+from transformers import AutoModelForCausalLM,AutoConfig
 
 from auto_fp8.config import BaseQuantizeConfig
 from auto_fp8.quantize import (
@@ -10,7 +10,8 @@ from auto_fp8.quantize import (
     quantize_weights,
     save_quantized_model,
 )
-
+from auto_fp8.models.modeling_qwen2 import Qwen2ForCausalLM
+from auto_fp8.quantize import FP8StaticOuputQuantizer
 
 class AutoFP8ForCausalLM:
     def __init__(
@@ -38,6 +39,53 @@ class AutoFP8ForCausalLM:
             quantize_config.kv_cache_quant_layers = kv_cache_quant_layers
 
         self.quantize_config = quantize_config
+
+    @staticmethod
+    def load_bin(model_path):
+        from safetensors.torch import load_file
+        config = AutoConfig.from_pretrained(model_path,trust_remote_code=True)
+        dir_list = os.listdir(model_path)
+        state_dict = {}
+        for file in dir_list:
+            if file.endswith('safetensors'):
+                state_dict.update(load_file(os.path.join(model_path, file)))
+            elif file.endswith('.bin'):
+                state_dict.update(torch.load(os.path.join(model_path, file),map_location='cpu'))
+        patten_q = ""
+        patten_gate = ''
+        for key in state_dict.keys():
+            if ".0" in key and "q_proj" in key and "weight" in key:
+                patten_q = key
+            if ".0" in key and "gate_proj" in key:
+                patten_gate = key
+
+        for i in range(config.num_hidden_layers):
+            new_name = patten_q.replace("0",str(i))
+            new_name_save = new_name.replace("q_proj","qkv_proj")
+            new_value = torch.cat([state_dict[new_name],state_dict[new_name.replace("q_proj","k_proj")],state_dict[new_name.replace('q_proj','v_proj')]])
+            state_dict[new_name_save] = new_value
+            state_dict.pop(new_name)
+            state_dict.pop(new_name.replace("q_proj","k_proj"))
+            state_dict.pop(new_name.replace('q_proj','v_proj'))
+
+
+            new_name = patten_q.replace("0",str(i))
+            new_name = new_name.replace(".weight",".bias")
+            new_name_save = new_name.replace("q_proj","qkv_proj")
+            new_value = torch.cat([state_dict[new_name],state_dict[new_name.replace("q_proj","k_proj")],state_dict[new_name.replace('q_proj','v_proj')]])
+            state_dict[new_name_save] = new_value
+            state_dict.pop(new_name)
+            state_dict.pop(new_name.replace("q_proj","k_proj"))
+            state_dict.pop(new_name.replace('q_proj','v_proj'))
+
+
+            new_name = patten_gate.replace("0",str(i))
+            new_name_save = new_name.replace("gate_proj","gate_up_proj")
+            new_value = torch.cat([state_dict[new_name],state_dict[new_name.replace("gate_proj","up_proj")]])
+            state_dict[new_name_save] = new_value
+            state_dict.pop(new_name)
+            state_dict.pop(new_name.replace("gate_proj","up_proj"))
+        return state_dict
 
     @classmethod
     def from_pretrained(
@@ -89,7 +137,7 @@ class AutoFP8ForCausalLM:
 
         merged_kwargs = {**model_init_kwargs, **cached_file_kwargs}
         print("Loading model with the following kwargs:", merged_kwargs)
-        model = AutoModelForCausalLM.from_pretrained(
+        model = Qwen2ForCausalLM.from_pretrained(
             pretrained_model_name_or_path, **merged_kwargs
         )
 
@@ -103,6 +151,8 @@ class AutoFP8ForCausalLM:
         else:
             print("Can't get model's sequence length, setting to 2048.")
             model.seqlen = 2048
+        state_dict = cls.load_bin(pretrained_model_name_or_path)
+        model.load_state_dict(state_dict, strict=False)
         model.eval()
 
         return cls(model, quantize_config)
@@ -110,6 +160,9 @@ class AutoFP8ForCausalLM:
     def quantize(self, calibration_tokens: Optional[torch.Tensor] = None):
 
         # Always quantize the weights as they do not require calibration data
+        for name,module in self.model.named_modules():
+            if isinstance(module,FP8StaticOuputQuantizer):
+                module.quantize_output = True
         quantize_weights(self.model, self.quantize_config)
 
         if self.quantize_config.activation_scheme == "static":

@@ -28,6 +28,7 @@ class BaseQuantizeConfig:
         activation_scheme: str = "static",
         ignore_patterns: List[str] = ["re:.*lm_head"],
         kv_cache_quant_targets: Optional[Tuple[str]] = None,
+        output_quant_targets=None
     ):
         if quant_method != "fp8":
             raise ValueError("Only FP8 quantization is supported.")
@@ -40,3 +41,4 @@ class BaseQuantizeConfig:
         self.ignore_patterns = ignore_patterns
         self.kv_cache_quant_targets = kv_cache_quant_targets
         self.ignored_layers = []
+        self.output_quant_targets = output_quant_targets

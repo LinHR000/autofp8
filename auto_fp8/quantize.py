@@ -132,6 +132,25 @@ class FP8DynamicLinear(torch.nn.Module):
         return output
 
 
+class FP8StaticOuputQuantizer(torch.nn.Module):
+    def __init__(
+        self,
+        quantize_output: bool = False,
+    ):
+        super().__init__()
+        self.output_scale = None
+
+    def forward(self, output):
+        if self.quantize_output:
+            qoutput, output_scale = per_tensor_quantize(output)
+            if self.output_scale is None:
+                self.output_scale = torch.nn.Parameter(output_scale, requires_grad=False)
+            elif output_scale > self.output_scale:
+                self.output_scale = torch.nn.Parameter(output_scale, requires_grad=False)
+            output = qoutput.to(output.dtype) * output_scale
+        return output
+        
+
 # Module responsible for taking already quantized weights, and recording input scales (and possibly output scales) using an activation observer
 class FP8StaticLinearQuantizer(torch.nn.Module):
     def __init__(
@@ -258,14 +277,22 @@ def quantize_activations(
             or name in quantize_config.ignored_layers
         ):
             continue
+        quantize_output = False
+        if hasattr(quantize_config, "kv_cache_quant_layers"):
+            for n in quantize_config.kv_cache_quant_layers:
+                if n in name:
+                    quantize_output = True
+                    break
+        if not quantize_output and hasattr(quantize_config, "output_quant_targets"):
+            for n in quantize_config.output_quant_targets:
+                if n in name:
+                    quantize_output = True
+                    break
         quantizer = FP8StaticLinearQuantizer(
             weight=dynamic_quant_linear.weight,
             weight_scale=dynamic_quant_linear.weight_scale,
             bias=dynamic_quant_linear.bias,
-            quantize_output=(
-                hasattr(quantize_config, "kv_cache_quant_layers")
-                and name in quantize_config.kv_cache_quant_layers
-            ),
+            quantize_output=quantize_output,
         )
         replace_module(model, name, quantizer)
         del dynamic_quant_linear
