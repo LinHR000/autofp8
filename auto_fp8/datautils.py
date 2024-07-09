@@ -96,10 +96,13 @@ def get_wikitext2(nsamples, seed, seqlen,model):
 def get_wikitext2(nsamples, seed, seqlen, model):
     logger.info("get_wikitext2")
     tokenizer = AutoTokenizer.from_pretrained(model, use_fast=False,trust_remote_code=True)
-    if os.path.isfile(os.path.join(current_directory, 'datasets/wiki_train.json')):
-        with open(os.path.join(current_directory,"datasets/wiki_train.json"),'r') as r:
+    # if os.path.isfile(os.path.join(current_directory, 'datasets/wiki_train.json')):
+    train_file = '/mnt/data/linhaoran/AutoFP8/datasets/wiki_train.json'
+    test_file = '/mnt/data/linhaoran/AutoFP8/datasets/wiki_test.json'
+    if os.path.isfile(train_file):
+        with open(train_file,'r') as r:
             traindata = json.load(r)['data']
-        with open(os.path.join(current_directory,"datasets/wiki_test.json"),'r') as r:
+        with open(test_file,'r') as r:
             testdata = json.load(r)['data']
         trainenc = tokenizer("\n\n".join(traindata), return_tensors='pt')
         testenc = tokenizer("\n\n".join(testdata), return_tensors='pt')

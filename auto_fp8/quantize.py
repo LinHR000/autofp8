@@ -138,7 +138,7 @@ class FP8StaticOuputQuantizer(torch.nn.Module):
         quantize_output: bool = False,
     ):
         super().__init__()
-        self.output_scale = None
+        self.quantize_output = quantize_output
 
     def forward(self, output):
         if self.quantize_output:

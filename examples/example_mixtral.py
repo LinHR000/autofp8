@@ -12,9 +12,9 @@ from auto_fp8.datautils import get_loaders
 pretrained_model_dir = "/mnt/data/project/skyllm/shared/test/Qwen2-72B-Instruct"
 pretrained_model_dir = "/mnt/data/project/skyllm/shared/test/Qwen2-72B-Instruct_merge_qkv"
 pretrained_model_dir = '/mnt/data/linhaoran/models/Qwen2-72B-Instruct-smooth-qkv_gate_up'
-pretrained_model_dir = '/mnt/data/linhaoran/models/Qwen2-72B-Instruct-smooth-qkv_gate_up_down'
-pretrained_model_dir = '/mnt/data/linhaoran/models/Qwen2-72B-Instruct-smooth-qkv_o_gate_up_down'
-pretrained_model_dir = '/mnt/data/linhaoran/models/Qwen2-72B-Instruct-smooth-qkv_o_gate_up_down_max'
+# pretrained_model_dir = '/mnt/data/linhaoran/models/Qwen2-72B-Instruct-smooth-qkv_gate_up_down'
+# pretrained_model_dir = '/mnt/data/linhaoran/models/Qwen2-72B-Instruct-smooth-qkv_o_gate_up_down'
+# pretrained_model_dir = '/mnt/data/linhaoran/models/Qwen2-72B-Instruct-smooth-qkv_o_gate_up_down_max'
 # quantized_model_dir = "Mixtral-8x7B-Instruct-v0.1-FP8"
 
 tokenizer = AutoTokenizer.from_pretrained(pretrained_model_dir, use_fast=True)
