@@ -242,8 +242,9 @@ class Qwen2Attention(nn.Module):
             base=self.rope_theta,
         )
 
-        self.q_pos_emb_quantizer = FP8StaticOuputQuantizer(quantize_output=False)
-        self.k_pos_emb_quantizer = FP8StaticOuputQuantizer(quantize_output=False)
+        self.q_pos_emb_quantizer = FP8StaticOuputQuantizer(quantize_output=True)
+        self.k_pos_emb_quantizer = FP8StaticOuputQuantizer(quantize_output=True)
+        self.v_quantizer = FP8StaticOuputQuantizer(quantize_output=True)
 
     def forward(
         self,
@@ -285,6 +286,7 @@ class Qwen2Attention(nn.Module):
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
         query_states = self.q_pos_emb_quantizer(query_states)
         key_states = self.k_pos_emb_quantizer(key_states)
+        value_states = self.v_quantizer(value_states)
 
         if past_key_value is not None:
             cache_kwargs = {"sin": sin, "cos": cos}  # Specific to RoPE models
@@ -396,6 +398,7 @@ class Qwen2FlashAttention2(Qwen2Attention):
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
         query_states = self.q_pos_emb_quantizer(query_states)
         key_states = self.k_pos_emb_quantizer(key_states)
+        value_states = self.v_quantizer(value_states)
         use_sliding_windows = (
             _flash_supports_window_size
             and getattr(self.config, "sliding_window", None) is not None
@@ -690,6 +693,7 @@ class Qwen2SdpaAttention(Qwen2Attention):
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
         query_states = self.q_pos_emb_quantizer(query_states)
         key_states = self.k_pos_emb_quantizer(key_states)
+        value_states = self.v_quantizer(value_states)
         if past_key_value is not None:
             cache_kwargs = {"sin": sin, "cos": cos}  # Specific to RoPE models
             key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
@@ -1108,7 +1112,7 @@ class Qwen2Model(Qwen2PreTrainedModel):
         )
 
 
-class Qwen2ForCausalLM(Qwen2PreTrainedModel):
+class Qwen2ForCausalLMMergeGemm(Qwen2PreTrainedModel):
     _tied_weights_keys = ["lm_head.weight"]
 
     def __init__(self, config):

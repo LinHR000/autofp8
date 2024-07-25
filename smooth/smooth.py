@@ -213,19 +213,6 @@ def smooth_lm(model, scales, alpha=0.5,smooth_part = ['qkv_proj','gate_up_proj']
 
 
         elif isinstance(module,Qwen2DecoderLayer):
-            # smooth qkv
-            attn_ln = module.input_layernorm  # attention forward norm
-            # qkv = [
-            #     module.self_attn.q_proj,
-            #     module.self_attn.k_proj,
-            #     module.self_attn.v_proj,
-            # ]
-            qkv = [
-                module.self_attn.qkv_proj
-            ]
-
-            qkv_input_scales = scales[name + ".self_attn.qkv_proj"]
-            smooth_ln_fcs_llama_like(attn_ln, qkv, qkv_input_scales, alpha)
             # smooth o_proj
             if 'o_proj' in smooth_part:
                 fcs1 = module.self_attn.v_proj
@@ -233,13 +220,20 @@ def smooth_lm(model, scales, alpha=0.5,smooth_part = ['qkv_proj','gate_up_proj']
                 o_proj_scales = scales[name + ".self_attn.o_proj"]
                 smooth_fcs_fcs_llama_like_gqa(fcs1, fcs2, o_proj_scales, alpha=0.5)
 
-            # smooth gate_up_proj
-            ffn_ln = module.post_attention_layernorm  # feed forward norm
-            # fcs = [module.mlp.gate_proj, module.mlp.up_proj]
-            fcs = [module.mlp.gate_up_proj]
-            fcs_input_scales = scales[name + ".mlp.gate_up_proj"]
 
-            smooth_ln_fcs_llama_like(ffn_ln, fcs, fcs_input_scales, alpha)
+            # smooth qkv
+            attn_ln = module.input_layernorm  # attention forward norm
+            qkv = [
+                module.self_attn.q_proj,
+                module.self_attn.k_proj,
+                module.self_attn.v_proj,
+            ]
+            # qkv = [
+            #     module.self_attn.qkv_proj
+            # ]
+
+            qkv_input_scales = scales[name + ".self_attn.qkv_proj"]
+            smooth_ln_fcs_llama_like(attn_ln, qkv, qkv_input_scales, alpha)
 
             # smooth down_proj
             if "down_proj" in smooth_part:
@@ -247,3 +241,13 @@ def smooth_lm(model, scales, alpha=0.5,smooth_part = ['qkv_proj','gate_up_proj']
                 fcs2 = [module.mlp.down_proj]
                 down_proj_scales = scales[name + ".mlp.down_proj"]
                 smooth_fcs_fcs_llama_like(fcs1, fcs2, down_proj_scales, alpha=0.5)
+
+            # smooth gate_up_proj
+            ffn_ln = module.post_attention_layernorm  # feed forward norm
+            fcs = [module.mlp.gate_proj, module.mlp.up_proj]
+            # fcs = [module.mlp.gate_up_proj]
+            fcs_input_scales = scales[name + ".mlp.gate_up_proj"]
+
+            smooth_ln_fcs_llama_like(ffn_ln, fcs, fcs_input_scales, alpha)
+
+

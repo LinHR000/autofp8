@@ -10,7 +10,7 @@ from auto_fp8.quantize import (
     quantize_weights,
     save_quantized_model,
 )
-from auto_fp8.models.modeling_qwen2 import Qwen2ForCausalLM
+from auto_fp8.models.modeling_qwen2 import Qwen2ForCausalLMMergeGemm
 from auto_fp8.quantize import FP8StaticOuputQuantizer
 
 class AutoFP8ForCausalLM:
@@ -90,7 +90,7 @@ class AutoFP8ForCausalLM:
 
         merged_kwargs = {**model_init_kwargs, **cached_file_kwargs}
         print("Loading model with the following kwargs:", merged_kwargs)
-        model = Qwen2ForCausalLM.from_pretrained(
+        model = Qwen2ForCausalLMMergeGemm.from_pretrained(
             pretrained_model_name_or_path, **merged_kwargs
         )
 
@@ -146,6 +146,8 @@ def get_layers_to_ignore(model, ignore_patterns) -> List[str]:
 
     for name, linear in model.named_modules():
         if not isinstance(linear, torch.nn.Linear):
+            continue
+        if "gate_up" in name:
             continue
 
         for ignore_pattern in ignore_patterns:

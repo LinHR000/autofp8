@@ -30,7 +30,7 @@ class BaseQuantizeConfig:
         kv_cache_quant_targets: Optional[Tuple[str]] = None,
         output_quant_targets=None
     ):
-        if quant_method != "fp8":
+        if quant_method not in  ["fp8","int8"]:
             raise ValueError("Only FP8 quantization is supported.")
         if activation_scheme not in ["static", "dynamic"]:
             raise ValueError(

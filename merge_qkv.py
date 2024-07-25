@@ -1,5 +1,6 @@
 import torch
-from auto_fp8.models.modeling_qwen2 import Qwen2ForCausalLM
+import os
+from auto_fp8.models.modeling_qwen2 import Qwen2ForCausalLMMergeGemm
 from transformers import AutoTokenizer,AutoConfig,AutoModelForCausalLM
 
 
@@ -49,12 +50,12 @@ def load_bin(model_path):
         state_dict.pop(new_name.replace("gate_proj","up_proj"))
     return state_dict
 
-model_path = "/mnt/data/project/skyllm/shared/test/Qwen2-72B-Instruct"
-save_path = "/mnt/data/project/skyllm/shared/test/Qwen2-72B-Instruct_t"
+model_path = "/mnt/data/linhaoran/models/Qwen2-72B-Instruct-smooth-qkv_o_gate_up_down"
+save_path = "/mnt/data/linhaoran/models/Qwen2-72B-Instruct-smooth-qkv_o_gate_up_down_merge_qkv"
 config = AutoConfig.from_pretrained(model_path,trust_remote_code=True)
 tokenizer = AutoTokenizer.from_pretrained(model_path,trust_remote_code=True)
-model = Qwen2ForCausalLM(config).to(config.torch_dtype).cpu()
 state_dict = load_bin(model_path)
+model = Qwen2ForCausalLMMergeGemm(config).to(config.torch_dtype).cpu()
 model.load_state_dict(state_dict, strict=False)
 model.save_pretrained(save_path)
 tokenizer.save_pretrained(save_path)
